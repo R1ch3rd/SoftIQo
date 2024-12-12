@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form,HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
-from sqlalchemy import create_engine, MetaData, Table, insert
+from sqlalchemy import create_engine, MetaData, Table, insert, delete
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+
 
 app = FastAPI()
 app.add_middleware(
@@ -19,6 +20,8 @@ connection_string = "postgresql+psycopg2://postgres:password@localhost/SoftIQo" 
 engine = create_engine(connection_string)
 metadata = MetaData(schema="public")
 metadata.reflect(bind=engine)
+table_name = "amazon_sale_report"
+selected_table = metadata.tables[f"public.{table_name}"]
 
 @app.post("/insert_record")
 async def insert_record(
@@ -44,8 +47,7 @@ async def insert_record(
     unnamed: bool = Form(False)
 ):
     try:
-        table_name = "amazon_sale_report"
-        selected_table = metadata.tables[f"public.{table_name}"]
+        
         record = {
         "index": index,
         "Order ID": order_id,
@@ -77,3 +79,23 @@ async def insert_record(
         return JSONResponse(content={"message": "Record inserted successfully!"}, status_code=200)
     except SQLAlchemyError as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.post("/delete_record")
+async def delete_record(order_id: str = Form(...), sku: str = Form(...)):
+    try:
+        query = delete(selected_table).where(
+            selected_table.c["Order ID"] == order_id,
+            selected_table.c["SKU"] == sku
+        )
+        
+        
+        with engine.begin() as connection:
+            result = connection.execute(query)
+        
+        
+        if result.rowcount == 0:  
+            return {"status": "failed", "message": "Record not found."}
+
+        return {"status": "success", "message": "Record deleted successfully."}
+    except SQLAlchemyError as e:
+        return {"status": "failed", "error": str(e)}

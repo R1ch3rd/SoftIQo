@@ -111,5 +111,15 @@
 
       <button type="submit">Submit</button>
     </form>
+    <h2>Delete Record</h2>
+    <form action="http://127.0.0.1:8000/delete_record" method="post">
+      <label for="order_id">Order ID:</label>
+      <input type="text" id="order_id" name="order_id" required /><br />
+
+      <label for="sku">SKU:</label>
+      <input type="text" id="sku" name="sku" required /><br />
+
+      <button type="submit">Delete Record</button>
+    </form>
   </body>
 </html>
