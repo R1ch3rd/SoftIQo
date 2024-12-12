@@ -1,4 +1,4 @@
-# Amazon Sale Report Management
+# Automated Data pipeline to insert and delete records from a database
 
 ## About the Repository
 
