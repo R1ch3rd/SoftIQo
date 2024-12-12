@@ -1,5 +1,4 @@
-# Instructions for the application (README content)
-readme_content = """# FastAPI Application with PostgreSQL Integration
+# DataInterface
 
 This FastAPI application demonstrates how to integrate a PostgreSQL database using SQLAlchemy and insert records into a table. The application also includes support for CORS middleware to enable cross-origin resource sharing.
 
