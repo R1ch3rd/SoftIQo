@@ -4,6 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Insert Record</title>
+    <script>
+      async function fetchRecord(event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        const form = event.target;
+        const formData = new FormData(form);
+
+        const response = await fetch(form.action, {
+          method: form.method,
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        // Display the JSON response on the page
+        const resultContainer = document.getElementById("get-record-result");
+        resultContainer.textContent = JSON.stringify(result, null, 2); // Format the JSON
+      }
+
+      async function fetchAnalysis() {
+        const response = await fetch("http://127.0.0.1:8000/analysis");
+        const html = await response.text();
+
+        // Display the analysis HTML content in a specific div
+        const analysisContainer = document.getElementById("analysis-container");
+        analysisContainer.innerHTML = html;
+      }
+    </script>
   </head>
   <body>
     <h1>Insert Record into Amazon Sale Report</h1>
@@ -121,5 +149,35 @@
 
       <button type="submit">Delete Record</button>
     </form>
+    <h2>Get Record</h2>
+    <form
+      action="http://127.0.0.1:8000/get_record"
+      method="post"
+      onsubmit="fetchRecord(event)"
+    >
+      <label for="order_id">Order ID:</label>
+      <input type="text" id="order_id" name="order_id" required /><br />
+
+      <label for="sku">SKU:</label>
+      <input type="text" id="sku" name="sku" required /><br />
+
+      <button type="submit">Get Record</button>
+    </form>
+
+    <h3>Record Details:</h3>
+    <pre
+      id="get-record-result"
+      style="
+        background: #f4f4f4;
+        padding: 10px;
+        border: 1px solid #ddd;
+        max-height: 300px;
+        overflow: auto;
+      "
+    ></pre>
+    <!-- <h2>Analysis Results</h2>
+    <button onclick="fetchAnalysis()">Get Analysis</button>
+
+    <div id="analysis-container" style="margin-top: 20px"></div> -->
   </body>
 </html>
