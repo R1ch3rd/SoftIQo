@@ -24,17 +24,22 @@
       }
 
       async function fetchAnalysis() {
-        const response = await fetch("http://127.0.0.1:8000/analysis");
-        const html = await response.text();
+        try {
+          const response = await fetch("http://127.0.0.1:8000/analysis");
+          const html = await response.text();
 
-        // Display the analysis HTML content in a specific div
-        const analysisContainer = document.getElementById("analysis-container");
-        analysisContainer.innerHTML = html;
+          // Display the analysis HTML content in a specific div
+          const analysisContainer =
+            document.getElementById("analysis-container");
+          analysisContainer.innerHTML = html;
+        } catch (error) {
+          console.error("Error fetching analysis content:", error);
+        }
       }
     </script>
   </head>
   <body>
-    <h1>Insert Record into Amazon Sale Report</h1>
+    <h1>Insert Record into Sale Report</h1>
     <form action="http://127.0.0.1:8000/insert_record" method="post">
       <label for="index">Index:</label>
       <input type="number" id="index" name="index" required /><br /><br />
@@ -175,9 +180,18 @@
         overflow: auto;
       "
     ></pre>
-    <!-- <h2>Analysis Results</h2>
+    <h2>Analysis Results</h2>
     <button onclick="fetchAnalysis()">Get Analysis</button>
 
-    <div id="analysis-container" style="margin-top: 20px"></div> -->
+    <div
+      id="analysis-container"
+      style="
+        margin-top: 20px;
+        background: #fff;
+        border: 1px solid #ddd;
+        padding: 15px;
+        overflow: auto;
+      "
+    ></div>
   </body>
 </html>

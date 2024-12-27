@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 from fastapi.responses import HTMLResponse
-
+from sklearn.preprocessing import LabelEncoder
+import base64
 
 app = FastAPI()
 app.add_middleware(
@@ -21,7 +22,7 @@ app.add_middleware(
 )
 
 
-connection_string = "postgresql+psycopg2://postgres:8643@localhost/SoftIQo" #modify password
+connection_string = "postgresql+psycopg2://postgres:pass@localhost/SoftIQo" #modify password
 engine = create_engine(connection_string)
 metadata = MetaData(schema="public")
 metadata.reflect(bind=engine)
@@ -127,67 +128,81 @@ async def get_record(order_id: str = Form(...), sku: str = Form(...)):
     except SQLAlchemyError as e:
         return {"status": "failed", "error": str(e)}
     
-# @app.get("/analysis", response_class=HTMLResponse)
-# async def analysis():
-#     query = "SELECT * FROM amazon_sale_report"
-#     df = pd.read_sql(query, engine)
-#     df['Date'] = pd.to_datetime(df['Date'], format='%Y-%m-%d', errors='coerce')
+@app.get("/analysis", response_class=HTMLResponse)
+async def analysis():
+    query = "SELECT * FROM amazon_sale_report"
+    df = pd.read_sql(query, engine)
+    df = df.fillna({'promotion_ids': 'None'})
+    df = df.dropna()
+    df = df.drop_duplicates()
+    df = df.drop(['index'], axis=1, errors='ignore')
+    df['Amount'] = df['Amount'].astype(float)
+    
+    # Generate plots
+    html_content = "<html><body>"
 
-#     # Cleaning the data
-#     df = df.fillna({'promotion_ids': 'None'})
-#     df = df.dropna()
-#     df = df.drop_duplicates()
-#     if 'index' in df.columns:
-#         df = df.drop(['index'], axis=1)
-#     if 'Amount' in df.columns:
-#         df['Amount'] = df['Amount'].astype(float)
-#     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    # Sales by Category
+    sales_by_category = df.groupby('Category')['Amount'].sum().sort_values(ascending=False)
+    plt.figure(figsize=(10, 6))
+    sales_by_category.plot(kind='bar', title='Sales by Category')
+    sales_by_category_img = save_plot_to_base64()
+    html_content += f'<h2>Sales by Category</h2><img src="data:image/png;base64,{sales_by_category_img}"><br>'
+    
+    # Distribution of Order Amounts
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df['Amount'], bins=30, kde=True)
+    plt.title('Distribution of Order Amounts')
+    dist_img = save_plot_to_base64()
+    html_content += f'<h2>Distribution of Order Amounts</h2><img src="data:image/png;base64,{dist_img}"><br>'
+    
+    # Orders Over Time
+    df['Date'] = pd.to_datetime(df['Date'])
+    orders_over_time = df.groupby('Date').size()
+    plt.figure(figsize=(10, 6))
+    orders_over_time.plot(title='Orders Over Time')
+    orders_over_time_img = save_plot_to_base64()
+    html_content += f'<h2>Orders Over Time</h2><img src="data:image/png;base64,{orders_over_time_img}"><br>'
+    
+    # Top Products
+    top_products = df.groupby('SKU')['Amount'].sum().sort_values(ascending=False).head(10)
+    html_content += f'<h2>Top 10 Products by Amount</h2><pre>{top_products.to_string()}</pre><br>'
+    
+    # Handle boolean columns
+    boolean_columns = ['B2B', 'Unnamed: 22']
+    for col in boolean_columns:
+        if col in df.columns:
+            df[col] = df[col].astype(int)
 
-#     # Create sales by category plot
-#     sales_by_category = df.groupby('Category')['Amount'].sum().sort_values(ascending=False)
-#     sales_by_category_plot = io.BytesIO()
-#     sales_by_category.plot(kind='bar', figsize=(10, 6), title='Sales by Category').get_figure().savefig(sales_by_category_plot, format='png')
-#     sales_by_category_plot.seek(0)
+    # Handle categorical columns with label encoding
+    categorical_columns = df.select_dtypes(include=['object']).columns
+    for col in categorical_columns:
+        df[col] = df[col].fillna('Unknown')  # Fill missing values
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col])
 
-#     # Create amount distribution plot
-#     amount_distribution_plot = io.BytesIO()
-#     sns.histplot(df['Amount'], bins=30, kde=True).get_figure().savefig(amount_distribution_plot, format='png')
-#     amount_distribution_plot.seek(0)
+    # Handle missing numerical values
+    numerical_columns = df.select_dtypes(include=['float64', 'int64']).columns
+    for col in numerical_columns:
+        df[col] = df[col].fillna(0)  # Replace NaNs with 0
 
-#     # Create orders over time plot
-#     orders_over_time = df.groupby('Date').size()
-#     orders_over_time_plot = io.BytesIO()
-#     orders_over_time.plot(figsize=(10, 6), title='Orders Over Time').get_figure().savefig(orders_over_time_plot, format='png')
-#     orders_over_time_plot.seek(0)
+    # Correlation Matrix
+    correlation_matrix = df.corr()
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(correlation_matrix, annot=False, cmap='coolwarm', fmt=".2f")
+    plt.title('Correlation Matrix')
+    correlation_img = save_plot_to_base64()
+    html_content += f'<h2>Correlation Matrix</h2><img src="data:image/png;base64,{correlation_img}"><br>'
+    
+    html_content += "</body></html>"
+    return HTMLResponse(content=html_content)
 
-#     # Correlation matrix plot
-#     for col in df.select_dtypes(include=['object']).columns:
-#         df[col] = pd.Categorical(df[col]).codes
-#     correlation_matrix = df.corr()
-#     correlation_matrix_plot = io.BytesIO()
-#     sns.heatmap(correlation_matrix, annot=False, cmap='coolwarm', fmt=".2f").get_figure().savefig(correlation_matrix_plot, format='png')
-#     correlation_matrix_plot.seek(0)
 
-#     # HTML content with images
-#     html_content = f"""
-#     <!DOCTYPE html>
-#     <html lang="en">
-#     <head>
-#         <meta charset="UTF-8">
-#         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-#         <title>Analysis</title>
-#     </head>
-#     <body>
-#         <h1>Data Analysis</h1>
-#         <h2>Sales by Category</h2>
-#         <img src="data:image/png;base64,{sales_by_category_plot.getvalue().decode('latin1')}" alt="Sales by Category">
-#         <h2>Distribution of Order Amounts</h2>
-#         <img src="data:image/png;base64,{amount_distribution_plot.getvalue().decode('latin1')}" alt="Amount Distribution">
-#         <h2>Orders Over Time</h2>
-#         <img src="data:image/png;base64,{orders_over_time_plot.getvalue().decode('latin1')}" alt="Orders Over Time">
-#         <h2>Correlation Matrix</h2>
-#         <img src="data:image/png;base64,{correlation_matrix_plot.getvalue().decode('latin1')}" alt="Correlation Matrix">
-#     </body>
-#     </html>
-#     """
-#     return HTMLResponse(content=html_content)
+def save_plot_to_base64():
+    """Save the current plot to a base64 string."""
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
+    plt.close()
+    return img_base64
