@@ -3,10 +3,101 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Insert Record</title>
+    <title>SoftIQo</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+
+      h1,
+      h2 {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #fff;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+      }
+      .container2 {
+        max-width: 1000px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #fff;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+      }
+
+      label {
+        display: block;
+        margin: 10px 0 5px;
+        font-weight: bold;
+      }
+
+      input,
+      button {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+
+      input[type="checkbox"] {
+        width: auto;
+        margin-right: 5px;
+      }
+
+      button {
+        background: #007bff;
+        color: white;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #0056b3;
+      }
+
+      .result-container {
+        margin-top: 20px;
+        padding: 15px;
+        background: #e9f7ef;
+        border: 1px solid #28a745;
+        color: #155724;
+        border-radius: 5px;
+      }
+
+      .error-container {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        border-radius: 5px;
+      }
+
+      pre {
+        background: #f4f4f4;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        max-height: 300px;
+        overflow: auto;
+      }
+    </style>
+
     <script>
-      async function fetchRecord(event) {
-        event.preventDefault(); // Prevent the default form submission
+      async function handleFormSubmit(event, actionType) {
+        event.preventDefault();
 
         const form = event.target;
         const formData = new FormData(form);
@@ -17,10 +108,18 @@
         });
 
         const result = await response.json();
+        const resultContainer = document.getElementById(
+          `${actionType}-result-container`
+        );
 
-        // Display the JSON response on the page
-        const resultContainer = document.getElementById("get-record-result");
-        resultContainer.textContent = JSON.stringify(result, null, 2); // Format the JSON
+        resultContainer.style.display = "block";
+        if (response.ok) {
+          resultContainer.textContent = JSON.stringify(result, null, 2);
+          resultContainer.className = "result-container";
+        } else {
+          resultContainer.textContent = result.error || "An error occurred.";
+          resultContainer.className = "error-container";
+        }
       }
 
       async function fetchAnalysis() {
@@ -36,162 +135,217 @@
           console.error("Error fetching analysis content:", error);
         }
       }
+      function validateDateFormat(input) {
+        const datePattern = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])-\d{2}$/;
+        const errorDiv = document.getElementById("date-error");
+
+        if (!datePattern.test(input.value) && input.value !== "") {
+          errorDiv.style.display = "block";
+        } else {
+          errorDiv.style.display = "none";
+        }
+      }
     </script>
   </head>
   <body>
-    <h1>Insert Record into Sale Report</h1>
-    <form action="http://127.0.0.1:8000/insert_record" method="post">
-      <label for="index">Index:</label>
-      <input type="number" id="index" name="index" required /><br /><br />
+    <header>
+      <h1>Sales Report Hub</h1>
+    </header>
+    <div class="container">
+      <h2>Insert Record</h2>
+      <form
+        action="http://127.0.0.1:8000/insert_record"
+        method="post"
+        onsubmit="handleFormSubmit(event, 'insert')"
+      >
+        <label for="index">Index:</label>
+        <input type="number" id="index" name="index" required /><br /><br />
 
-      <label for="order_id">Order ID:</label>
-      <input type="text" id="order_id" name="order_id" required /><br /><br />
+        <label for="order_id">Order ID:</label>
+        <input type="text" id="order_id" name="order_id" required /><br /><br />
 
-      <label for="date">Date:</label>
-      <input type="date" id="date" name="date" required /><br /><br />
+        <label for="date">Date (MM-DD-YY):</label>
+        <input
+          type="text"
+          id="date"
+          name="date"
+          placeholder="MM-DD-YY"
+          required
+          oninput="validateDateFormat(this)"
+        />
+        <div id="date-error" style="color: red; display: none">
+          Invalid date format. Use MM-DD-YY.
+        </div>
 
-      <label for="status">Status:</label>
-      <input type="text" id="status" name="status" required /><br /><br />
+        <label for="status">Status:</label>
+        <input type="text" id="status" name="status" required /><br /><br />
 
-      <label for="fulfilment">Fulfilment:</label>
-      <input
-        type="text"
-        id="fulfilment"
-        name="fulfilment"
-        required
-      /><br /><br />
+        <label for="fulfilment">Fulfilment:</label>
+        <input
+          type="text"
+          id="fulfilment"
+          name="fulfilment"
+          required
+        /><br /><br />
 
-      <label for="sales_channel">Sales Channel:</label>
-      <input
-        type="text"
-        id="sales_channel"
-        name="sales_channel"
-        required
-      /><br /><br />
+        <label for="sales_channel">Sales Channel:</label>
+        <input
+          type="text"
+          id="sales_channel"
+          name="sales_channel"
+          required
+        /><br /><br />
 
-      <label for="ship_service_level">Ship Service Level:</label>
-      <input
-        type="text"
-        id="ship_service_level"
-        name="ship_service_level"
-        required
-      /><br /><br />
+        <label for="ship_service_level">Ship Service Level:</label>
+        <input
+          type="text"
+          id="ship_service_level"
+          name="ship_service_level"
+          required
+        /><br /><br />
 
-      <label for="style">Style:</label>
-      <input type="text" id="style" name="style" required /><br /><br />
+        <label for="style">Style:</label>
+        <input type="text" id="style" name="style" required /><br /><br />
 
-      <label for="sku">SKU:</label>
-      <input type="text" id="sku" name="sku" required /><br /><br />
+        <label for="sku">SKU:</label>
+        <input type="text" id="sku" name="sku" required /><br /><br />
 
-      <label for="category">Category:</label>
-      <input type="text" id="category" name="category" required /><br /><br />
+        <label for="category">Category:</label>
+        <input type="text" id="category" name="category" required /><br /><br />
 
-      <label for="currency">Currency:</label>
-      <input type="text" id="currency" name="currency" required /><br /><br />
+        <label for="size">Size:</label>
+        <input type="text" id="size" name="size" required /><br /><br />
 
-      <label for="amount">Amount:</label>
-      <input
-        type="number"
-        step="0.01"
-        id="amount"
-        name="amount"
-        required
-      /><br /><br />
+        <label for="asin">ASIN:</label>
+        <input type="text" id="asin" name="asin" required /><br /><br />
 
-      <label for="ship_city">Ship City:</label>
-      <input type="text" id="ship_city" name="ship_city" required /><br /><br />
+        <label for="courier_status">Courier Status:</label>
+        <input
+          type="text"
+          id="courier_status"
+          name="courier_status"
+          required
+        /><br /><br />
 
-      <label for="ship_state">Ship State:</label>
-      <input
-        type="text"
-        id="ship_state"
-        name="ship_state"
-        required
-      /><br /><br />
+        <label for="qty">Quantity:</label>
+        <input type="number" id="qty" name="qty" required /><br /><br />
 
-      <label for="ship_postal_code">Ship Postal Code:</label>
-      <input
-        type="number"
-        id="ship_postal_code"
-        name="ship_postal_code"
-        required
-      /><br /><br />
+        <label for="currency">Currency:</label>
+        <input type="text" id="currency" name="currency" required /><br /><br />
 
-      <label for="ship_country">Ship Country:</label>
-      <input
-        type="text"
-        id="ship_country"
-        name="ship_country"
-        required
-      /><br /><br />
+        <label for="amount">Amount:</label>
+        <input type="number" id="amount" name="amount" required /><br /><br />
 
-      <label for="promotion_ids">Promotion IDs:</label>
-      <input type="text" id="promotion_ids" name="promotion_ids" /><br /><br />
+        <label for="ship_city">Ship City:</label>
+        <input
+          type="text"
+          id="ship_city"
+          name="ship_city"
+          required
+        /><br /><br />
 
-      <label for="b2b">B2B:</label>
-      <input type="checkbox" id="b2b" name="b2b" /><br /><br />
+        <label for="ship_state">Ship State:</label>
+        <input
+          type="text"
+          id="ship_state"
+          name="ship_state"
+          required
+        /><br /><br />
 
-      <label for="fulfilled_by">Fulfilled By:</label>
-      <input
-        type="text"
-        id="fulfilled_by"
-        name="fulfilled_by"
-        required
-      /><br /><br />
+        <label for="ship_postal_code">Ship Postal Code:</label>
+        <input
+          type="number"
+          id="ship_postal_code"
+          name="ship_postal_code"
+          required
+        /><br /><br />
 
-      <label for="unnamed">Unnamed:</label>
-      <input type="checkbox" id="unnamed" name="unnamed" /><br /><br />
+        <label for="ship_country">Ship Country:</label>
+        <input
+          type="text"
+          id="ship_country"
+          name="ship_country"
+          required
+        /><br /><br />
 
-      <button type="submit">Submit</button>
-    </form>
-    <h2>Delete Record</h2>
-    <form action="http://127.0.0.1:8000/delete_record" method="post">
-      <label for="order_id">Order ID:</label>
-      <input type="text" id="order_id" name="order_id" required /><br />
+        <label for="promotion_ids">Promotion IDs:</label>
+        <input
+          type="text"
+          id="promotion_ids"
+          name="promotion_ids"
+        /><br /><br />
 
-      <label for="sku">SKU:</label>
-      <input type="text" id="sku" name="sku" required /><br />
+        <label for="b2b">B2B:</label>
+        <input type="checkbox" id="b2b" name="b2b" /><br /><br />
 
-      <button type="submit">Delete Record</button>
-    </form>
-    <h2>Get Record</h2>
-    <form
-      action="http://127.0.0.1:8000/get_record"
-      method="post"
-      onsubmit="fetchRecord(event)"
-    >
-      <label for="order_id">Order ID:</label>
-      <input type="text" id="order_id" name="order_id" required /><br />
+        <label for="fulfilled_by">Fulfilled By:</label>
+        <input type="text" id="fulfilled_by" name="fulfilled_by" /><br /><br />
 
-      <label for="sku">SKU:</label>
-      <input type="text" id="sku" name="sku" required /><br />
+        <label for="unnamed">Unnamed:</label>
+        <input type="checkbox" id="unnamed" name="unnamed" /><br /><br />
 
-      <button type="submit">Get Record</button>
-    </form>
+        <button type="submit">Submit</button>
+      </form>
+      <div
+        id="insert-result-container"
+        class="result-container"
+        style="display: none"
+      ></div>
+      <h2>Delete Record</h2>
+      <form
+        action="http://127.0.0.1:8000/delete_record"
+        method="post"
+        onsubmit="handleFormSubmit(event, 'delete')"
+      >
+        <label for="order_id">Order ID:</label>
+        <input type="text" id="order_id" name="order_id" required /><br />
 
-    <h3>Record Details:</h3>
-    <pre
-      id="get-record-result"
-      style="
-        background: #f4f4f4;
-        padding: 10px;
-        border: 1px solid #ddd;
-        max-height: 300px;
-        overflow: auto;
-      "
-    ></pre>
-    <h2>Analysis Results</h2>
-    <button onclick="fetchAnalysis()">Get Analysis</button>
+        <label for="sku">SKU:</label>
+        <input type="text" id="sku" name="sku" required /><br />
 
-    <div
-      id="analysis-container"
-      style="
-        margin-top: 20px;
-        background: #fff;
-        border: 1px solid #ddd;
-        padding: 15px;
-        overflow: auto;
-      "
-    ></div>
+        <button type="submit">Delete Record</button>
+      </form>
+      <div
+        id="delete-result-container"
+        class="result-container"
+        style="display: none"
+      ></div>
+      <h2>Get Record</h2>
+      <form
+        action="http://127.0.0.1:8000/get_record"
+        method="post"
+        onsubmit="handleFormSubmit(event, 'get')"
+      >
+        <label for="order_id">Order ID:</label>
+        <input type="text" id="order_id" name="order_id" required /><br />
+
+        <label for="sku">SKU:</label>
+        <input type="text" id="sku" name="sku" required /><br />
+
+        <button type="submit">Get Record</button>
+      </form>
+
+      <h3>Record Details:</h3>
+      <pre
+        id="get-result-container"
+        class="result-container"
+        style="display: none"
+      ></pre>
+    </div>
+    <div class="container2">
+      <h2>Analysis Results</h2>
+      <button onclick="fetchAnalysis()">Get Analysis</button>
+
+      <div
+        id="analysis-container"
+        style="
+          margin-top: 20px;
+          background: #fff;
+          border: 1px solid #ddd;
+          padding: 15px;
+          overflow: auto;
+        "
+      ></div>
+    </div>
   </body>
 </html>

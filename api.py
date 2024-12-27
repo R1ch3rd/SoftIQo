@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 
-connection_string = "postgresql+psycopg2://postgres:pass@localhost/SoftIQo" #modify password
+connection_string = "postgresql+psycopg2://postgres:password@localhost/SoftIQo" #modify password
 engine = create_engine(connection_string)
 metadata = MetaData(schema="public")
 metadata.reflect(bind=engine)
@@ -41,6 +41,10 @@ async def insert_record(
     style: str = Form(...),
     sku: str = Form(...),
     category: str = Form(...),
+    size: str = Form(...),
+    asin: str = Form(...),
+    courier_status: str = Form(...),
+    qty: int = Form(...),
     currency: str = Form(...),
     amount: float = Form(...),
     ship_city: str = Form(...),
@@ -65,6 +69,10 @@ async def insert_record(
         "Style": style,
         "SKU": sku,
         "Category": category,
+        "Size": size,
+        "ASIN": asin,
+        "Courier Status": courier_status,
+        "Qty": qty,
         "currency": currency,
         "Amount": amount,
         "ship-city": ship_city,
