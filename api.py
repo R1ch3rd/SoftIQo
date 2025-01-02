@@ -11,7 +11,7 @@ import io
 from fastapi.responses import HTMLResponse
 from sklearn.preprocessing import LabelEncoder
 import base64
-
+import time
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -22,12 +22,34 @@ app.add_middleware(
 )
 
 
-connection_string = "postgresql+psycopg2://postgres:password@localhost/SoftIQo" #modify password
-engine = create_engine(connection_string)
-metadata = MetaData(schema="public")
-metadata.reflect(bind=engine)
-table_name = "amazon_sale_report"
-selected_table = metadata.tables[f"public.{table_name}"]
+connection_string = "postgresql://postgres:rich@pgdb:5432/softiqo" #modify password
+
+
+def connect_to_db():
+    retries = 5
+    delay = 2  # seconds
+
+    for attempt in range(retries):
+        try:
+            engine = create_engine(connection_string)
+            metadata = MetaData(schema="public")
+            metadata.reflect(bind=engine)
+            table_name = "amazon_sale_report"
+            selected_table = metadata.tables[f"public.{table_name}"]
+            print("Database connection established.")
+            return engine, metadata, selected_table
+        except Exception as e:
+            print(f"Database connection attempt {attempt + 1} failed: {e}")
+            time.sleep(delay)
+
+    print("Failed to connect to the database after 5 attempts.")
+    return None,None,None
+engine, metadata, selected_table =connect_to_db()
+
+@app.get("/", response_class=HTMLResponse)
+async def get_index():
+    with open("front.html") as f:
+        return HTMLResponse(content=f.read())
 
 @app.post("/insert_record")
 async def insert_record(
