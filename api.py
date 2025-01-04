@@ -85,7 +85,7 @@ async def insert_record(
         "Order ID": order_id,
         "Date": date,
         "Status": status,
-        "Fulfilment": fulfilment,
+        "Fulfillment": fulfilment,
         "Sales Channel ": sales_channel,
         "ship-service-level": ship_service_level,
         "Style": style,
