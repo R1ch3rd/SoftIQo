@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 
-connection_string = "postgresql://pgdb_uyvm_user:mMLVW1BIWDoOJF1IvyMrPCN5kEmHw70S@dpg-ctr2rs23esus73b922t0-a/pgdb_uyvm" #modify password
+connection_string = "postgresql://postgres:rich@pgdb:5432/softiqo" #modify password
 
 
 def connect_to_db():
