@@ -24,7 +24,6 @@ CREATE TABLE amazon_sale_report (
     "fulfilled-by" VARCHAR(50),
     "Unnamed: 22" BOOLEAN
 );
-
 COPY amazon_sale_report
 FROM '/data/import.csv'
 DELIMITER ','

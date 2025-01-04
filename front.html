@@ -124,7 +124,9 @@
 
       async function fetchAnalysis() {
         try {
-          const response = await fetch("http://127.0.0.1:8000/analysis");
+          const response = await fetch(
+            "https://softiqo-1.onrender.com/analysis"
+          );
           const html = await response.text();
 
           // Display the analysis HTML content in a specific div
@@ -154,7 +156,7 @@
     <div class="container">
       <h2>Insert Record</h2>
       <form
-        action="http://127.0.0.1:8000/insert_record"
+        action="https://softiqo-1.onrender.com/insert_record"
         method="post"
         onsubmit="handleFormSubmit(event, 'insert')"
       >
@@ -293,7 +295,7 @@
       ></div>
       <h2>Delete Record</h2>
       <form
-        action="http://127.0.0.1:8000/delete_record"
+        action="https://softiqo-1.onrender.com/delete_record"
         method="post"
         onsubmit="handleFormSubmit(event, 'delete')"
       >
@@ -312,7 +314,7 @@
       ></div>
       <h2>Get Record</h2>
       <form
-        action="http://127.0.0.1:8000/get_record"
+        action="https://softiqo-1.onrender.com/get_record"
         method="post"
         onsubmit="handleFormSubmit(event, 'get')"
       >
