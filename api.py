@@ -12,7 +12,18 @@ from fastapi.responses import HTMLResponse
 from sklearn.preprocessing import LabelEncoder
 import base64
 import time
+from dotenv import load_dotenv
+import os
+
 app = FastAPI()
+load_dotenv()
+origins = [
+    # "https://softiqo-1.onrender.com/analysis",  # Replace with the frontend URL
+    "https://softiqo-1.onrender.com",  # Your hosted backend URL if necessary
+    # "https://softiqo-1.onrender.com/insert_record",
+    # "https://softiqo-1.onrender.com/delete_record",
+    # "https://softiqo-1.onrender.com/get_record"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,8 +32,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-connection_string = "postgresql://pgdb_uyvm_user:mMLVW1BIWDoOJF1IvyMrPCN5kEmHw70S@dpg-ctr2rs23esus73b922t0-a/pgdb_uyvm" #modify password
+connection_url = os.getenv("connection_url")
+connection_string = connection_url #modify password
 
 
 def connect_to_db():
