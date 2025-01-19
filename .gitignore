@@ -3,4 +3,5 @@ extra data
 __pycache__
 db.ipynb
 venv
-venv
+generation.py
+.env

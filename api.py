@@ -12,7 +12,20 @@ from fastapi.responses import HTMLResponse
 from sklearn.preprocessing import LabelEncoder
 import base64
 import time
+from datetime import datetime
+from typing import Optional
+from dotenv import load_dotenv
+import os
+
 app = FastAPI()
+load_dotenv()
+origins = [
+    # "https://softiqo-1.onrender.com/analysis",  # Replace with the frontend URL
+    "https://softiqo-1.onrender.com",  # Your hosted backend URL if necessary
+    # "https://softiqo-1.onrender.com/insert_record",
+    # "https://softiqo-1.onrender.com/delete_record",
+    # "https://softiqo-1.onrender.com/get_record"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,9 +34,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-connection_string = "postgresql://postgres:rich@pgdb:5432/softiqo" #modify password
-
+connection_url = os.getenv("connection_url")
+connection_string = connection_url #modify password
 
 def connect_to_db():
     retries = 5
@@ -34,7 +46,7 @@ def connect_to_db():
             engine = create_engine(connection_string)
             metadata = MetaData(schema="public")
             metadata.reflect(bind=engine)
-            table_name = "amazon_sale_report"
+            table_name = "sales_transactions"
             selected_table = metadata.tables[f"public.{table_name}"]
             print("Database connection established.")
             return engine, metadata, selected_table
@@ -44,193 +56,344 @@ def connect_to_db():
 
     print("Failed to connect to the database after 5 attempts.")
     return None,None,None
-engine, metadata, selected_table =connect_to_db()
 
+engine, metadata, sales_transactions =connect_to_db()
+
+# Serve frontend
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
-    with open("front.html") as f:
-        return HTMLResponse(content=f.read())
+    """Serves the main frontend HTML page"""
+    try:
+        with open("front.html", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Error: Frontend file not found</h1>")
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>Error loading frontend: {str(e)}</h1>")
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint to verify system status
+    """
+    try:
+        # Test database connection
+        with engine.connect() as connection:
+            result = connection.execute("SELECT 1").fetchone()
+            db_status = "healthy" if result[0] == 1 else "unhealthy"
+    except Exception as e:
+        db_status = f"unhealthy: {str(e)}"
+
+    return {
+        "status": "online",
+        "database": db_status,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
 @app.post("/insert_record")
 async def insert_record(
-    index: int = Form(...),
-    order_id: str = Form(...),
-    date: str = Form(...),
-    status: str = Form(...),
-    fulfilment: str = Form(...),
-    sales_channel: str = Form(...),
-    ship_service_level: str = Form(...),
-    style: str = Form(...),
     sku: str = Form(...),
-    category: str = Form(...),
-    size: str = Form(...),
-    asin: str = Form(...),
-    courier_status: str = Form(...),
-    qty: int = Form(...),
-    currency: str = Form(...),
-    amount: float = Form(...),
-    ship_city: str = Form(...),
-    ship_state: str = Form(...),
-    ship_postal_code: int = Form(...),
-    ship_country: str = Form(...),
-    promotion_ids: str = Form(None),
-    b2b: bool = Form(False),
-    fulfilled_by: str = Form(...),
-    unnamed: bool = Form(False)
+    sale_channel: str = Form(...),
+    transaction_datetime: str = Form(...),
+    quantity: int = Form(...),
+    price: float = Form(...)
 ):
     try:
-        
+        # Handle optional microseconds in the datetime format
+        try:
+            parsed_datetime = datetime.strptime(transaction_datetime, "%Y-%m-%d %H:%M:%S.%f")
+        except ValueError:
+            parsed_datetime = datetime.strptime(transaction_datetime, "%Y-%m-%d %H:%M:%S")
+
         record = {
-        "index": index,
-        "Order ID": order_id,
-        "Date": date,
-        "Status": status,
-        "Fulfilment": fulfilment,
-        "Sales Channel ": sales_channel,
-        "ship-service-level": ship_service_level,
-        "Style": style,
-        "SKU": sku,
-        "Category": category,
-        "Size": size,
-        "ASIN": asin,
-        "Courier Status": courier_status,
-        "Qty": qty,
-        "currency": currency,
-        "Amount": amount,
-        "ship-city": ship_city,
-        "ship-state": ship_state,
-        "ship-postal-code": ship_postal_code,
-        "ship-country": ship_country,
-        "promotion-ids": promotion_ids,
-        "B2B": b2b,
-        "fulfilled-by": fulfilled_by,
-        "Unnamed: 22": unnamed
-    }
+            "sku": sku,
+            "sale_channel": sale_channel,
+            "transaction_datetime": parsed_datetime,
+            "quantity": quantity,
+            "price": price
+        }
+
+        # Validate sale channel
+        valid_channels = ['Online', 'Store 1', 'Store 2', 'Marketplace']
+        if record['sale_channel'] not in valid_channels:
+            return JSONResponse(
+                content={
+                    "error": f"Invalid sale channel. Must be one of: {', '.join(valid_channels)}"
+                },
+                status_code=400
+            )
+
+        # Validate SKU format
+        if not any(record['sku'].startswith(prefix) for prefix in ['ELEC', 'CLT', 'HOME']):
+            return JSONResponse(
+                content={
+                    "error": "Invalid SKU format. Must start with ELEC, CLT, or HOME followed by 3 digits"
+                },
+                status_code=400
+            )
+
+        # Validate quantity and price
+        if record['quantity'] <= 0:
+            return JSONResponse(
+                content={"error": "Quantity must be greater than 0"},
+                status_code=400
+            )
+        if record['price'] <= 0:
+            return JSONResponse(
+                content={"error": "Price must be greater than 0"},
+                status_code=400
+            )
 
         with Session(engine) as session:
-            query = insert(selected_table).values(**record)
+            query = insert(sales_transactions).values(**record)
             session.execute(query)
             session.commit()
 
-        return JSONResponse(content={"message": "Record inserted successfully!"}, status_code=200)
-    except SQLAlchemyError as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
-@app.post("/delete_record")
-async def delete_record(order_id: str = Form(...), sku: str = Form(...)):
-    try:
-        query = delete(selected_table).where(
-            selected_table.c["Order ID"] == order_id,
-            selected_table.c["SKU"] == sku
+        return JSONResponse(
+            content={"message": "Record inserted successfully!"},
+            status_code=200
         )
-        
+    except ValueError as e:
+        return JSONResponse(
+            content={"error": f"Invalid datetime format: {str(e)}"},
+            status_code=400
+        )
+    except SQLAlchemyError as e:
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+@app.post("/delete_record")
+async def delete_record(
+    transaction_id: int = Form(...)
+):
+    try:
+        query = delete(sales_transactions).where(
+            sales_transactions.c.transaction_id == transaction_id
+        )
         
         with engine.begin() as connection:
             result = connection.execute(query)
         
-        
-        if result.rowcount == 0:  
-            return {"status": "failed", "message": "Record not found."}
+        if result.rowcount == 0:
+            return {
+                "status": "failed",
+                "message": f"Record with transaction_id {transaction_id} not found."
+            }
 
-        return {"status": "success", "message": "Record deleted successfully."}
+        return {
+            "status": "success",
+            "message": "Record deleted successfully."
+        }
     except SQLAlchemyError as e:
-        return {"status": "failed", "error": str(e)}
+        return {
+            "status": "failed",
+            "error": str(e)
+        }
+
 @app.post("/get_record")
-async def get_record(order_id: str = Form(...), sku: str = Form(...)):
+async def get_record(
+    transaction_id: int = Form(...)
+):
     try:
-        query = select(selected_table).where(
-            selected_table.c["Order ID"] == order_id,
-            selected_table.c["SKU"] == sku
+        query = select(sales_transactions).where(
+            sales_transactions.c.transaction_id == transaction_id
         )
-        
         
         with engine.connect() as connection:
             result = connection.execute(query).fetchone()
         
+        if result is None:
+            return {
+                "status": "failed",
+                "message": f"Record with transaction_id {transaction_id} not found."
+            }
+
+        record = dict(result._mapping)
         
-        if result is None:  
-            return {"status": "failed", "message": "Record not found."}
+        # Format datetime for JSON response
+        record['transaction_datetime'] = record['transaction_datetime'].strftime("%Y-%m-%d %H:%M:%S")
+        record['created_at'] = record['created_at'].strftime("%Y-%m-%d %H:%M:%S")
 
-        record = dict(result._mapping)  # Use _mapping for Row objects
-
-        return {"status": "success", "record": record}
+        return {
+            "status": "success",
+            "record": record
+        }
 
     except SQLAlchemyError as e:
-        return {"status": "failed", "error": str(e)}
-    
+        return {
+            "status": "failed",
+            "error": str(e)
+        }
+
+# Additional utility endpoint to search by SKU and date range
+@app.get("/search_records")
+async def search_records(
+    sku: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    sale_channel: Optional[str] = None
+):
+    try:
+        query = select(sales_transactions)
+        
+        # Add filters if parameters are provided
+        if sku:
+            query = query.where(sales_transactions.c.sku == sku)
+        if start_date:
+            start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.where(sales_transactions.c.transaction_datetime >= start_datetime)
+        if end_date:
+            end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+            query = query.where(sales_transactions.c.transaction_datetime <= end_datetime)
+        if sale_channel:
+            query = query.where(sales_transactions.c.sale_channel == sale_channel)
+        
+        with engine.connect() as connection:
+            results = connection.execute(query).fetchall()
+            
+        if not results:
+            return {
+                "status": "failed",
+                "message": "No records found matching the criteria."
+            }
+
+        records = []
+        for result in results:
+            record = dict(result._mapping)
+            record['transaction_datetime'] = record['transaction_datetime'].strftime("%Y-%m-%d %H:%M:%S")
+            record['created_at'] = record['created_at'].strftime("%Y-%m-%d %H:%M:%S")
+            records.append(record)
+
+        return {
+            "status": "success",
+            "records": records
+        }
+
+    except ValueError as e:
+        return {
+            "status": "failed",
+            "error": f"Invalid date format: {str(e)}"
+        }
+    except SQLAlchemyError as e:
+        return {
+            "status": "failed",
+            "error": str(e)
+        }# from fastapi import FastAPI
+# from fastapi.responses import HTMLResponse
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import io
+# import base64
+# from datetime import datetime
+# import numpy as np
+
 @app.get("/analysis", response_class=HTMLResponse)
-async def analysis():
-    query = "SELECT * FROM amazon_sale_report"
+async def sales_analysis():
+    # Read data from database
+    query = "SELECT * FROM sales_transactions"
     df = pd.read_sql(query, engine)
-    df = df.fillna({'promotion_ids': 'None'})
-    df = df.dropna()
-    df = df.drop_duplicates()
-    df = df.drop(['index'], axis=1, errors='ignore')
-    df['Amount'] = df['Amount'].astype(float)
+    
+    # Basic data preprocessing
+    df['transaction_datetime'] = pd.to_datetime(df['transaction_datetime'])
+    df['date'] = df['transaction_datetime'].dt.date
+    df['hour'] = df['transaction_datetime'].dt.hour
+    df['weekday'] = df['transaction_datetime'].dt.day_name()
+    df['total_amount'] = df['quantity'] * df['price']
     
     # Generate plots
-    html_content = "<html><body>"
-
-    # Sales by Category
-    sales_by_category = df.groupby('Category')['Amount'].sum().sort_values(ascending=False)
-    plt.figure(figsize=(10, 6))
-    sales_by_category.plot(kind='bar', title='Sales by Category')
-    sales_by_category_img = save_plot_to_base64()
-    html_content += f'<h2>Sales by Category</h2><img src="data:image/png;base64,{sales_by_category_img}"><br>'
+    html_content = """
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            img { max-width: 800px; margin: 20px 0; }
+            h2 { color: #333; }
+            .stats-box { 
+                background: #f5f5f5; 
+                padding: 15px; 
+                border-radius: 5px;
+                margin: 10px 0;
+            }
+        </style>
+    </head>
+    <body>
+    """
     
-    # Distribution of Order Amounts
-    plt.figure(figsize=(10, 6))
-    sns.histplot(df['Amount'], bins=30, kde=True)
-    plt.title('Distribution of Order Amounts')
-    dist_img = save_plot_to_base64()
-    html_content += f'<h2>Distribution of Order Amounts</h2><img src="data:image/png;base64,{dist_img}"><br>'
+    # 1. Sales by Channel
+    plt.figure(figsize=(12, 6))
+    channel_sales = df.groupby('sale_channel')['total_amount'].sum().sort_values(ascending=False)
+    channel_sales.plot(kind='bar', title='Total Sales by Channel')
+    plt.xticks(rotation=45)
+    plt.ylabel('Total Sales Amount')
+    channel_sales_img = save_plot_to_base64()
+    html_content += f'<h2>Sales by Channel</h2><img src="data:image/png;base64,{channel_sales_img}"><br>'
     
-    # Orders Over Time
-    df['Date'] = pd.to_datetime(df['Date'])
-    orders_over_time = df.groupby('Date').size()
-    plt.figure(figsize=(10, 6))
-    orders_over_time.plot(title='Orders Over Time')
-    orders_over_time_img = save_plot_to_base64()
-    html_content += f'<h2>Orders Over Time</h2><img src="data:image/png;base64,{orders_over_time_img}"><br>'
+    # 2. Hourly Sales Distribution
+    plt.figure(figsize=(12, 6))
+    hourly_sales = df.groupby('hour')['total_amount'].sum()
+    plt.plot(hourly_sales.index, hourly_sales.values)
+    plt.title('Sales Distribution by Hour')
+    plt.xlabel('Hour of Day')
+    plt.ylabel('Total Sales Amount')
+    hourly_sales_img = save_plot_to_base64()
+    html_content += f'<h2>Sales Distribution by Hour</h2><img src="data:image/png;base64,{hourly_sales_img}"><br>'
     
-    # Top Products
-    top_products = df.groupby('SKU')['Amount'].sum().sort_values(ascending=False).head(10)
-    html_content += f'<h2>Top 10 Products by Amount</h2><pre>{top_products.to_string()}</pre><br>'
+    # 3. Top Products by Revenue
+    plt.figure(figsize=(12, 6))
+    top_products = df.groupby('sku')['total_amount'].sum().sort_values(ascending=False).head(10)
+    top_products.plot(kind='bar', title='Top 10 Products by Revenue')
+    plt.xticks(rotation=45)
+    plt.ylabel('Total Revenue')
+    top_products_img = save_plot_to_base64()
+    html_content += f'<h2>Top 10 Products by Revenue</h2><img src="data:image/png;base64,{top_products_img}"><br>'
     
-    # Handle boolean columns
-    boolean_columns = ['B2B', 'Unnamed: 22']
-    for col in boolean_columns:
-        if col in df.columns:
-            df[col] = df[col].astype(int)
-
-    # Handle categorical columns with label encoding
-    categorical_columns = df.select_dtypes(include=['object']).columns
-    for col in categorical_columns:
-        df[col] = df[col].fillna('Unknown')  # Fill missing values
-        le = LabelEncoder()
-        df[col] = le.fit_transform(df[col])
-
-    # Handle missing numerical values
-    numerical_columns = df.select_dtypes(include=['float64', 'int64']).columns
-    for col in numerical_columns:
-        df[col] = df[col].fillna(0)  # Replace NaNs with 0
-
-    # Correlation Matrix
-    correlation_matrix = df.corr()
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(correlation_matrix, annot=False, cmap='coolwarm', fmt=".2f")
-    plt.title('Correlation Matrix')
-    correlation_img = save_plot_to_base64()
-    html_content += f'<h2>Correlation Matrix</h2><img src="data:image/png;base64,{correlation_img}"><br>'
+    # 4. Sales by Weekday
+    plt.figure(figsize=(12, 6))
+    weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    weekday_sales = df.groupby('weekday')['total_amount'].sum().reindex(weekday_order)
+    weekday_sales.plot(kind='bar', title='Sales by Day of Week')
+    plt.xticks(rotation=45)
+    plt.ylabel('Total Sales Amount')
+    weekday_sales_img = save_plot_to_base64()
+    html_content += f'<h2>Sales by Day of Week</h2><img src="data:image/png;base64,{weekday_sales_img}"><br>'
+    
+    # 5. Key Statistics
+    html_content += """
+    <h2>Key Statistics</h2>
+    <div class="stats-box">
+    """
+    total_sales = df['total_amount'].sum()
+    total_transactions = len(df)
+    avg_transaction = df['total_amount'].mean()
+    
+    stats_html = f"""
+        <p><strong>Total Sales:</strong> ${total_sales:,.2f}</p>
+        <p><strong>Total Transactions:</strong> {total_transactions:,}</p>
+        <p><strong>Average Transaction Value:</strong> ${avg_transaction:.2f}</p>
+        <p><strong>Most Popular Channel:</strong> {channel_sales.index[0]}</p>
+        <p><strong>Best Selling SKU:</strong> {top_products.index[0]}</p>
+    """
+    html_content += stats_html + "</div>"
+    
+    # 6. Daily Sales Trend
+    plt.figure(figsize=(12, 6))
+    daily_sales = df.groupby('date')['total_amount'].sum()
+    plt.plot(daily_sales.index, daily_sales.values)
+    plt.title('Daily Sales Trend')
+    plt.xticks(rotation=45)
+    plt.ylabel('Total Sales Amount')
+    daily_sales_img = save_plot_to_base64()
+    html_content += f'<h2>Daily Sales Trend</h2><img src="data:image/png;base64,{daily_sales_img}"><br>'
     
     html_content += "</body></html>"
     return HTMLResponse(content=html_content)
 
-
 def save_plot_to_base64():
     """Save the current plot to a base64 string."""
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.savefig(buf, format='png', bbox_inches='tight', dpi=300)
     buf.seek(0)
     img_base64 = base64.b64encode(buf.read()).decode('utf-8')
     buf.close()
