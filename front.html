@@ -15,7 +15,8 @@
       }
 
       h1,
-      h2 {
+      h2,
+      h3 {
         text-align: center;
         margin-bottom: 20px;
       }
@@ -169,12 +170,21 @@
         // Show loading message
         analysisContainer.innerHTML = "<p>Loading...</p>";
 
+        const analysisContainer = document.getElementById("analysis-container");
+
+        // Show loading message
+        analysisContainer.innerHTML = "<p>Loading...</p>";
+
         try {
+          const response = await fetch(
+            "https://softiqo-1.onrender.com/analysis"
+          );
           const response = await fetch(
             "https://softiqo-1.onrender.com/analysis"
           );
           const html = await response.text();
 
+          // Display the analysis HTML content
           // Display the analysis HTML content
           analysisContainer.innerHTML = html;
         } catch (error) {
@@ -201,7 +211,7 @@
     <div class="container">
       <h2>Insert Record</h2>
       <form
-        action="http://127.0.0.1:8000/insert_record"
+        action="https://softiqo-1.onrender.com/insert_record"
         method="post"
         onsubmit="handleFormSubmit(event, 'insert')"
       >
@@ -274,7 +284,7 @@
     <div class="container">
       <h2>Delete Record</h2>
       <form
-        action="http://127.0.0.1:8000/delete_record"
+        action="https://softiqo-1.onrender.com/delete_record"
         method="post"
         onsubmit="handleFormSubmit(event, 'delete')"
       >
@@ -292,7 +302,7 @@
       <div class="container">
       <h2>Get Record</h2>
       <form
-        action="http://127.0.0.1:8000/get_record"
+        action="https://softiqo-1.onrender.com/get_record"
         method="post"
         onsubmit="handleFormSubmit(event, 'get')"
       >
@@ -368,6 +378,7 @@
     
     <div class="container2">
       <h2>Analysis Results</h2>
+      <h3>Requests take approximately 5-10 seconds</h3>
       <button onclick="fetchAnalysis()">Get Analysis</button>
 
       <div

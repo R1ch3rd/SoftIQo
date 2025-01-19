@@ -26,6 +26,14 @@ origins = [
     # "https://softiqo-1.onrender.com/delete_record",
     # "https://softiqo-1.onrender.com/get_record"
 ]
+load_dotenv()
+origins = [
+    # "https://softiqo-1.onrender.com/analysis",  # Replace with the frontend URL
+    "https://softiqo-1.onrender.com",  # Your hosted backend URL if necessary
+    # "https://softiqo-1.onrender.com/insert_record",
+    # "https://softiqo-1.onrender.com/delete_record",
+    # "https://softiqo-1.onrender.com/get_record"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
