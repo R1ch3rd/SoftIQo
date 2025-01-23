@@ -116,86 +116,75 @@
 
     <script>
       async function handleFormSubmit(event, actionType) {
-  event.preventDefault();
-
-  const form = event.target;
-  const formData = new FormData(form);
-
-  try {
-    let url = form.action;
-    let options = {
-      method: form.method.toUpperCase(),
-    };
-
-    // Handle GET requests by appending query parameters to the URL
-    if (options.method === "GET") {
-      const queryParams = new URLSearchParams(formData).toString();
-      url = `${form.action}?${queryParams}`;
-    } else {
-      // For POST or other methods, include the body
-      options.body = formData;
-    }
-
-    const response = await fetch(url, options);
-
-    const result = await response.json();
-    const resultContainer = document.getElementById(
-      `${actionType}-result-container`
-    );
-
-    resultContainer.style.display = "block";
-
-    if (response.ok) {
-      resultContainer.textContent = JSON.stringify(result, null, 2);
-      resultContainer.className = "result-container";
-    } else {
-      resultContainer.textContent = result.error || "An error occurred.";
-      resultContainer.className = "error-container";
-    }
-  } catch (error) {
-    console.error("Error:", error);
-    const resultContainer = document.getElementById(
-      `${actionType}-result-container`
-    );
-    resultContainer.style.display = "block";
-    resultContainer.textContent = "An unexpected error occurred.";
-    resultContainer.className = "error-container";
-  }
-}
-
-
+        event.preventDefault();
+    
+        const form = event.target;
+        const formData = new FormData(form);
+    
+        try {
+          let url = form.action;
+          let options = {
+            method: form.method.toUpperCase(),
+          };
+    
+          // Handle GET requests by appending query parameters to the URL
+          if (options.method === "GET") {
+            const queryParams = new URLSearchParams(formData).toString();
+            url = `${form.action}?${queryParams}`;
+          } else {
+            // For POST or other methods, include the body
+            options.body = formData;
+          }
+    
+          const response = await fetch(url, options);
+          const result = await response.json();
+          const resultContainer = document.getElementById(
+            `${actionType}-result-container`
+          );
+    
+          resultContainer.style.display = "block";
+    
+          if (response.ok) {
+            resultContainer.textContent = JSON.stringify(result, null, 2);
+            resultContainer.className = "result-container";
+          } else {
+            resultContainer.textContent = result.error || "An error occurred.";
+            resultContainer.className = "error-container";
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          const resultContainer = document.getElementById(
+            `${actionType}-result-container`
+          );
+          resultContainer.style.display = "block";
+          resultContainer.textContent = "An unexpected error occurred.";
+          resultContainer.className = "error-container";
+        }
+      }
+    
       async function fetchAnalysis() {
         const analysisContainer = document.getElementById("analysis-container");
-
+    
         // Show loading message
         analysisContainer.innerHTML = "<p>Loading...</p>";
-
-        const analysisContainer = document.getElementById("analysis-container");
-
-        // Show loading message
-        analysisContainer.innerHTML = "<p>Loading...</p>";
-
+    
         try {
-          const response = await fetch(
-            "https://softiqo-1.onrender.com/analysis"
-          );
-          const response = await fetch(
-            "https://softiqo-1.onrender.com/analysis"
-          );
+          const response = await fetch("https://softiqo-1.onrender.com/analysis");
           const html = await response.text();
-
-          // Display the analysis HTML content
+    
           // Display the analysis HTML content
           analysisContainer.innerHTML = html;
         } catch (error) {
           console.error("Error fetching analysis content:", error);
           analysisContainer.innerHTML =
             "<p>There was an error loading the analysis.</p>";
-          }}
+        }
+      }
+    
       function validateDateFormat(input) {
         const datePattern = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])-\d{2}$/;
         const errorDiv = document.getElementById("date-error");
-
+    
         if (!datePattern.test(input.value) && input.value !== "") {
           errorDiv.style.display = "block";
         } else {
@@ -203,6 +192,7 @@
         }
       }
     </script>
+    
   </head>
   <body>
     <header>
@@ -323,7 +313,7 @@
     <div class="container">
       <h2>Search Records</h2>
       <form
-        action="http://127.0.0.1:8000/search_records"
+        action="http://softiqo-1.onrender.com/search_records"
         method="get"
         onsubmit="handleFormSubmit(event, 'search')"
       >
@@ -338,7 +328,7 @@
           title="SKU must start with ELEC, CLT, or HOME followed by three digits."
         /><br /><br />
     
-        label for="start_date">Start Date:</label>
+        <label for="start_date">Start Date:</label>
     <input
       type="date"
       id="start_date"
@@ -379,7 +369,7 @@
     <div class="container2">
       <h2>Analysis Results</h2>
       <h3>Requests take approximately 5-10 seconds</h3>
-      <button onclick="fetchAnalysis()">Get Analysis</button>
+      <button onclick=fetchAnalysis()>Get Analysis</button>
 
       <div
         id="analysis-container"
